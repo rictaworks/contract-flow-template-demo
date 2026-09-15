@@ -34,7 +34,7 @@ export const GateEvaluator = {
     }
 
     if (phase.gate_kind !== "内部レビュー" && approvals.length === 0) {
-      unmetRequired.push("承認記録が存在する");
+      unmetRequired.push(AUTO_COMPUTED_CRITERIA_TEXTS.approvalExists);
     }
 
     for (const c of criteria) {
