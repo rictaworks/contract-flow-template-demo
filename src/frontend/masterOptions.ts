@@ -48,3 +48,14 @@ export const MAINTENANCE_STAGE_OPTIONS = [
 ];
 
 export const MAINTENANCE_STAGE_ORDER = MAINTENANCE_STAGE_OPTIONS.map((opt) => opt.value);
+
+// バックエンド src/worker/master/criteria.ts の AUTO_COMPUTED_CRITERIA_TEXTS と必ず一致させる。
+// この3つの判断基準だけが、達成状態を実データ（承認記録・持越し課題・変更要求）から動的に
+// 算出する（gateEvaluator.ts）ため、手動でのチェックを許さずチェックボックスを disabled にする。
+// これ以外の判断基準は autoAttached（派生規則による自動付与）であっても、satisfied は
+// criteria テーブルの値をそのまま使うため、手動でチェックできなければ永久に未達のままになる。
+export const AUTO_COMPUTED_CRITERIA_TEXTS = [
+  "承認記録が存在する",
+  "持越し課題がゼロである",
+  "未合意の変更要求がゼロである",
+] as const;
