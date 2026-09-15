@@ -189,13 +189,16 @@ phaseRoutes.post("/phases/:phaseId/advance", async (c) => {
   const loaded = await loadPhaseWithProject(c.env.DB, sessionId, phaseId);
   if (!loaded) return c.json({ error: STRINGS.errors.notFound }, 404);
   const { phase, project } = loaded;
-  if (project.state === "中止") return c.json({ error: STRINGS.errors.projectAborted }, 409);
+  // 中止後はP18（クローズ）のみが進行可能（requirements.md 8.3・状態遷移図15.1）。
+  // P18自身の前進は例外として許可する。
+  if (project.state === "中止" && phase.phase_code !== "P18") return c.json({ error: STRINGS.errors.projectAborted }, 409);
 
   const latestReview = await PhaseRepository.latestGateReview(c.env.DB, sessionId, phaseId);
   if (!latestReview || !TransitionService.canAdvance(latestReview.verdict as "通過" | "条件付き通過" | "不通過")) {
     return c.json({ error: STRINGS.errors.advanceNotAllowed }, 409);
   }
 
+  const wasAborted = project.state === "中止";
   const orderedPhases = await PhaseRepository.listByProject(c.env.DB, sessionId, project.id);
   await PhaseRepository.updateState(c.env.DB, sessionId, phaseId, latestReview.verdict === "通過" ? "通過" : "条件付き通過");
 
@@ -204,7 +207,8 @@ phaseRoutes.post("/phases/:phaseId/advance", async (c) => {
     await PhaseRepository.updateState(c.env.DB, sessionId, next.id, "進行中");
     await ProjectRepository.updateCurrentPhase(c.env.DB, sessionId, project.id, next.id);
   } else {
-    await ProjectRepository.updateState(c.env.DB, sessionId, project.id, "完了");
+    // 中止経由でP18を通過した場合は「クローズ」、通常経路の終端では「完了」（状態遷移図15.1）。
+    await ProjectRepository.updateState(c.env.DB, sessionId, project.id, wasAborted ? "クローズ" : "完了");
   }
   await TransitionRepository.add(c.env.DB, sessionId, project.id, phaseId, next?.id ?? null, "前進", null);
 

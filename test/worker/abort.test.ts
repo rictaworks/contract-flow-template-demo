@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestD1 } from "./support/testDb";
 import { makeClient } from "./support/client";
+import { fullySatisfyPhase, evaluateAndAdvance } from "./support/passPhase";
 
 describe("中止", () => {
   let db: D1Database;
@@ -43,9 +44,35 @@ describe("中止", () => {
     const settlement = p18Detail.criteria.find((c: { text: string }) => c.text === "精算（工数・費用）が完了している");
     expect(settlement.level).toBe("必須");
 
-    // 中止後は前進操作が拒否される
+    // ゲート評価前の前進は（中止とは無関係に）拒否される
     const advance = await client.post(`/api/phases/${p18.id}/advance`);
     expect(advance.status).toBe(409);
+  });
+
+  it("中止後もP18を満たしてゲートを通過させれば前進でき、案件状態は「クローズ」になる（issue #8 回帰）", async () => {
+    await client.post(`/api/projects/${projectId}/abort`, { reason: "発注者都合により中止" });
+
+    const flow = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    const p18Id = flow.project.currentPhaseId as string;
+
+    await fullySatisfyPhase(client, p18Id);
+    const verdict = await evaluateAndAdvance(client, p18Id);
+    expect(verdict).not.toBe("不通過");
+
+    const after = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    expect(after.project.state).toBe("クローズ");
+  });
+
+  it("中止後、P18以外（P01）は依然として前進・ゲート評価とも拒否される", async () => {
+    await client.post(`/api/projects/${projectId}/abort`, { reason: "発注者都合により中止" });
+    const flow = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    const p01 = flow.phases.find((p: { code: string }) => p.code === "P01");
+
+    const evalRes = await client.post(`/api/phases/${p01.id}/evaluate`);
+    expect(evalRes.status).toBe(409);
+
+    const advanceRes = await client.post(`/api/phases/${p01.id}/advance`);
+    expect(advanceRes.status).toBe(409);
   });
 
   it("中止で凍結された工程の成果物・判断基準は更新できない（8.3：P18以外は操作不能）", async () => {
