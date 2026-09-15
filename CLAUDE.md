@@ -36,7 +36,7 @@
 
 仕様の正は [`requirements.md`](requirements.md)（用語定義・案件プロファイル・工程/成果物/判断基準マスタ・派生規則・ゲート判定仕様・ER図・DFD・シーケンス図・クラス図・状態遷移図・ユースケース図を含む）。実装前に必ず参照すること。本ファイルには要約と横断的な注意点のみを記す。
 
-**現状（2026-09-15時点）：`new_repository` スキルによるbootstrapのみ完了。Issue未発行・実装未着手。**
+**現状（2026-09-15時点）：Issue #1（実装）・#3（vite/vitest脆弱性修正）・#5（wrangler v4アップグレード）を実装・マージ済み、タグ `v01.01.00`。本番デプロイ済み・本番ユーザーテスト実施済み（Claude Desktopのブラウザツールで実施。詳細は本ファイル「本番デプロイ」節）。既知の未修正バグ2件あり（「既知の未修正バグ」節参照）。**
 
 ## アーキテクチャ（requirements.md 2.3 / 5 / 10 / 11 が正）
 
@@ -123,9 +123,23 @@
 | `npm run test:e2e` | PlaywrightによるE2Eテスト（`test/e2e/`。`npm run dev` 相当のサーバーを自動起動） |
 | `npm run db:migrate:local` | ローカルD1へマイグレーション（`src/worker/db/migrations/`）を適用 |
 
-Cloudflareアカウントへの実デプロイ（`wrangler deploy` 等）は本節の対象外（未実施）。`wrangler.toml` の `database_id` はローカル用プレースホルダのため、本番デプロイ時は `wrangler d1 create` 後に差し替えが必要。
+## 本番デプロイ（2026-09-15実施・デスクトップから実施済み）
 
-## 参照ドキュメント
+**構成はPagesを使わずWorkers Assetsに一本化**（`org-cube-model-router-demo`のようなPages+Workers構成ではない）。理由：デプロイに使ったCloudflare APIトークンにPages編集権限が無く、`wrangler pages project create`が失敗したため。同じWorker（`contract-flow-template-demo`）がフロントエンド静的アセットとAPIの両方を配信する（`auth-link-triage-ledger-demo`・`rictaworks.jp`と同方式）。
+
+- D1データベース `contract_flow_demo`（uuid `8022e729-6c51-47d4-8245-85db765302b8`）をCloudflare MCP経由で作成、`src/worker/db/migrations/0001_init.sql`を`d1_database_query`で直接適用（`wrangler d1 migrations apply`ではない）。
+- `wrangler.toml`に`[env.production]`ブロックを追加し、`[env.production.assets]`（`directory = "./dist/frontend"`, `binding = "ASSETS"`, `run_worker_first = ["/api/*"]`）と`[[env.production.routes]]`（`pattern = "contract-flow-template-demo.rictaworks.jp"`, `custom_domain = true`）を設定。`/api/*`のみWorkerスクリプト（Hono）が処理し、それ以外は静的アセットを直接返す。
+- デプロイコマンド：`npm run build`（フロントエンド）→`npx wrangler deploy --env production`（Worker+アセットを同時デプロイ、カスタムドメインも自動設定）。
+- **デプロイ用トークンの罠**：`.deploy.<COMPUTERNAME>.enc`の既存`CLOUDFLARE_API_TOKEN`はDNS編集専用スコープでWorkers/D1権限が無く、`wrangler deploy`が認証段階で失敗した。既存の`rictaworks-jp build token`（Workers スクリプト:編集・D1:編集・Workers ルート:編集・SSL証明書:編集を含む）をCloudflareダッシュボードで「ロール」（再生成）し、新しい値を`CLOUDFLARE_API_TOKEN_BUILD`という別キーで`.deploy.<COMPUTERNAME>.enc`に保存した（値はチャットに出さず、コピー→クリップボード→PowerShellの`Get-Clipboard`経由で受け渡し）。`CLOUDFLARE_ACCOUNT_ID`は`9c5183bedab008ccef3581056752fa6f`。
+- 本番URL：`https://contract-flow-template-demo.rictaworks.jp/`（ヘルスチェック `/api/health`）。
+
+## 既知の未修正バグ（2026-09-15 本番ユーザーテストで発見）
+
+1. **【重大】請負・ハイブリッド契約が要件定義（P04）を永久に通過できない。** `src/frontend/pages/phaseDetailPage.ts`の`checkbox.disabled = c.autoAttached;`が、派生規則が追加した判断基準（`autoAttached: true`がデフォルト）のチェックボックスを常時disabledにしている。しかし`satisfied`が実データから動的に算出されるのは`gateEvaluator.ts`の`AUTO_COMPUTED_CRITERIA_TEXTS`（承認記録が存在する・持越し課題がゼロ・未合意の変更要求がゼロ）の3つだけで、R06が追加する「検収基準の合意」（請負に常時付与）・R08の「請負範囲・再見積の提示」（ハイブリッドに常時付与）・R14の2件（請負×調査）はチェック手段が無いまま必須基準として残り、P04が不通過のまま固定される。**請負・ハイブリッドの案件プロファイルではP04から先に進めない。** 準委任のみ影響なし（実機で完了まで確認済み）。修正案：`checkbox.disabled`の判定を、`autoAttached`ではなく`AUTO_COMPUTED_CRITERIA_TEXTS`に含まれるテキストかどうかに変更する。
+2. **【重大】中止（`案件を中止する`）した案件はP18（クローズ）を永久に通過できず「クローズ」状態に到達できない。** `src/worker/routes/phase.ts`の`/phases/:phaseId/advance`ハンドラが`project.state === "中止"`のとき無条件に409エラー（`この案件は中止されています。クローズ工程のみ操作できます。`）を返す。しかしrequirements.md 8.3は「中止後はP18（クローズ）のみが進行可能」と規定しており、P18自身の前進もブロックされるのはこの規定と矛盾する。修正案：advanceハンドラで`phase.code === "P18"`のときは`project.state === "中止"`チェックを免除する。
+3. **【中】ゲート再評価のたびに同一の持越し課題が重複登録される。** `src/worker/routes/phase.ts`の`/phases/:phaseId/evaluate`ハンドラが、条件付き通過の判定ごとに`CarryoverRepository.add()`を無条件に呼び出す。同一工程・同一テキストの未解決な持越し課題が既に存在するかを確認していないため、同じ工程を複数回評価する（差戻し後の再評価等、通常の使用でも起こりうる）と重複行が積み重なり、「持越し課題」一覧に同じ文言が複数回表示され、それぞれ個別に「この工程で解決する」を押す必要がある。修正案：追加前に同一(phase_id, text, state='未解決')の既存行を確認する。
+
+いずれも実機（本番URL）で再現確認済み。Issue化・修正は本人判断。
 
 | ファイル | 用途 |
 |---|---|
