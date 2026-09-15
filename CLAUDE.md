@@ -36,7 +36,7 @@
 
 仕様の正は [`requirements.md`](requirements.md)（用語定義・案件プロファイル・工程/成果物/判断基準マスタ・派生規則・ゲート判定仕様・ER図・DFD・シーケンス図・クラス図・状態遷移図・ユースケース図を含む）。実装前に必ず参照すること。本ファイルには要約と横断的な注意点のみを記す。
 
-**現状（2026-09-15時点）：Issue #1（実装）・#3（vite/vitest脆弱性修正）・#5（wrangler v4アップグレード）を実装・マージ済み、タグ `v01.01.00`。本番デプロイ済み・本番ユーザーテスト実施済み（Claude Desktopのブラウザツールで実施。詳細は本ファイル「本番デプロイ」節）。既知の未修正バグ2件あり（「既知の未修正バグ」節参照）。**
+**現状（2026-09-15時点）：Issue #1（実装）・#3（vite/vitest脆弱性修正）・#5（wrangler v4アップグレード）・#7（P04永久不通過バグ修正）・#8（中止案件のP18クローズ不可バグ修正）・#9（持越し課題の重複登録バグ修正）を実装・マージ済み、タグ `v01.01.01`。本番デプロイ済み・本番ユーザーテスト実施済み（Claude Desktopのブラウザツールで実施。詳細は本ファイル「本番デプロイ」節）。#7・#8修正後の再デプロイでの実機再確認も完了済み。既知の未修正バグは無し（2026-09-15時点）。**
 
 ## アーキテクチャ（requirements.md 2.3 / 5 / 10 / 11 が正）
 
@@ -133,13 +133,13 @@
 - **デプロイ用トークンの罠**：`.deploy.<COMPUTERNAME>.enc`の既存`CLOUDFLARE_API_TOKEN`はDNS編集専用スコープでWorkers/D1権限が無く、`wrangler deploy`が認証段階で失敗した。既存の`rictaworks-jp build token`（Workers スクリプト:編集・D1:編集・Workers ルート:編集・SSL証明書:編集を含む）をCloudflareダッシュボードで「ロール」（再生成）し、新しい値を`CLOUDFLARE_API_TOKEN_BUILD`という別キーで`.deploy.<COMPUTERNAME>.enc`に保存した（値はチャットに出さず、コピー→クリップボード→PowerShellの`Get-Clipboard`経由で受け渡し）。`CLOUDFLARE_ACCOUNT_ID`は`9c5183bedab008ccef3581056752fa6f`。
 - 本番URL：`https://contract-flow-template-demo.rictaworks.jp/`（ヘルスチェック `/api/health`）。
 
-## 既知の未修正バグ（2026-09-15 本番ユーザーテストで発見）
+## 修正済みバグ（2026-09-15 本番ユーザーテストで発見・同日中に修正・再デプロイ・実機再確認済み）
 
-1. **【重大】請負・ハイブリッド契約が要件定義（P04）を永久に通過できない。** `src/frontend/pages/phaseDetailPage.ts`の`checkbox.disabled = c.autoAttached;`が、派生規則が追加した判断基準（`autoAttached: true`がデフォルト）のチェックボックスを常時disabledにしている。しかし`satisfied`が実データから動的に算出されるのは`gateEvaluator.ts`の`AUTO_COMPUTED_CRITERIA_TEXTS`（承認記録が存在する・持越し課題がゼロ・未合意の変更要求がゼロ）の3つだけで、R06が追加する「検収基準の合意」（請負に常時付与）・R08の「請負範囲・再見積の提示」（ハイブリッドに常時付与）・R14の2件（請負×調査）はチェック手段が無いまま必須基準として残り、P04が不通過のまま固定される。**請負・ハイブリッドの案件プロファイルではP04から先に進めない。** 準委任のみ影響なし（実機で完了まで確認済み）。修正案：`checkbox.disabled`の判定を、`autoAttached`ではなく`AUTO_COMPUTED_CRITERIA_TEXTS`に含まれるテキストかどうかに変更する。
-2. **【重大】中止（`案件を中止する`）した案件はP18（クローズ）を永久に通過できず「クローズ」状態に到達できない。** `src/worker/routes/phase.ts`の`/phases/:phaseId/advance`ハンドラが`project.state === "中止"`のとき無条件に409エラー（`この案件は中止されています。クローズ工程のみ操作できます。`）を返す。しかしrequirements.md 8.3は「中止後はP18（クローズ）のみが進行可能」と規定しており、P18自身の前進もブロックされるのはこの規定と矛盾する。修正案：advanceハンドラで`phase.code === "P18"`のときは`project.state === "中止"`チェックを免除する。
-3. **【中】ゲート再評価のたびに同一の持越し課題が重複登録される。** `src/worker/routes/phase.ts`の`/phases/:phaseId/evaluate`ハンドラが、条件付き通過の判定ごとに`CarryoverRepository.add()`を無条件に呼び出す。同一工程・同一テキストの未解決な持越し課題が既に存在するかを確認していないため、同じ工程を複数回評価する（差戻し後の再評価等、通常の使用でも起こりうる）と重複行が積み重なり、「持越し課題」一覧に同じ文言が複数回表示され、それぞれ個別に「この工程で解決する」を押す必要がある。修正案：追加前に同一(phase_id, text, state='未解決')の既存行を確認する。
+1. **請負・ハイブリッド契約が要件定義（P04）を永久に通過できない（Issue #7・PR #10）。** `src/frontend/pages/phaseDetailPage.ts`の`checkbox.disabled`判定が、派生規則が追加した判断基準（`autoAttached: true`）と、実データから動的に算出される判断基準（`gateEvaluator.ts`の`AUTO_COMPUTED_CRITERIA_TEXTS`の3つのみ）を混同していたため、R06「検収基準の合意」・R08「請負範囲・再見積の提示」等がチェック不能な必須基準として残り続けていた。判定基準を`AUTO_COMPUTED_CRITERIA_TEXTS`（`src/frontend/masterOptions.ts`に同期用の定数を追加）に含まれるかどうかに変更して解消。
+2. **中止した案件がP18（クローズ）を永久に通過できない（Issue #8・PR #11）。** `/phases/:phaseId/advance`ハンドラの中止チェックにP18の例外を追加し、中止経由でP18を通過した場合に`project.state`を`クローズ`へ正しく更新する分岐を追加。
+3. **ゲート再評価のたびに同一の持越し課題が重複登録される（Issue #9・PR #12）。** `CarryoverRepository.add()`に、同一工程・同一文言の未解決な既存行があれば新規登録をスキップする重複チェックを追加。
 
-いずれも実機（本番URL）で再現確認済み。Issue化・修正は本人判断。
+タグ`v01.01.01`で本番反映済み。3件とも本番URLで実機再現・修正確認済み（#7・#8は再デプロイ後にClaude Desktopのブラウザツールで再確認、#9はユニットテストで確認）。
 
 | ファイル | 用途 |
 |---|---|
