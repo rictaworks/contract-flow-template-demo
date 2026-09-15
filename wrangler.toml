@@ -1,0 +1,16 @@
+name = "contract-flow-template-demo"
+main = "src/worker/index.ts"
+compatibility_date = "2024-09-25"
+
+[triggers]
+# JST 03:00 = UTC 18:00 (前日)
+crons = ["0 18 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "contract_flow_demo"
+database_id = "local-placeholder-set-before-deploy"
+migrations_dir = "src/worker/db/migrations"
+
+[vars]
+APP_ENV = "development"
