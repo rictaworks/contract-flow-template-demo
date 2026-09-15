@@ -6,6 +6,7 @@ import { renderFlowOverviewPage } from "./pages/flowOverviewPage";
 import { renderPhaseDetailPage } from "./pages/phaseDetailPage";
 import { renderChangeRequestPage } from "./pages/changeRequestPage";
 import { renderHistoryPage } from "./pages/historyPage";
+import { renderLegalPage } from "./pages/legalPage";
 
 const root = document.getElementById("app");
 if (!root) throw new Error("app root element not found");
@@ -21,4 +22,5 @@ router
   .add("/phases/:id", (params, target) => renderPhaseDetailPage(target, router, params.id ?? ""))
   .add("/change-requests", (_params, target) => renderChangeRequestPage(target, router))
   .add("/history", (_params, target) => renderHistoryPage(target, router))
+  .add("/legal", (_params, target) => renderLegalPage(target, router))
   .start();

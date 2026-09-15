@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --color-bg: #f5f6f8;
   --color-surface: #ffffff;
   --color-border: #d8dce2;
@@ -11,6 +12,7 @@
   --color-warning-bg: #fff4d6;
   --color-error-bg: #fbe4e1;
   --color-success: #1c7c3f;
+  --color-amber: #b45309;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 16px;
@@ -29,6 +31,15 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.6;
+}
+
+.demo-banner {
+  background: var(--color-amber);
+  color: #fff;
+  text-align: center;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 #app {
@@ -80,6 +91,12 @@ body {
 .app-nav a:focus-visible {
   background: var(--color-surface);
   color: var(--color-primary);
+}
+
+.app-nav-backlink {
+  margin-left: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--color-border);
 }
 
 .data-lifetime-banner {
@@ -388,12 +405,67 @@ td {
 
 #notice-region {
   position: fixed;
-  bottom: var(--space-4);
+  bottom: calc(1.5rem + 56px);
   right: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   z-index: 1000;
+}
+
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.app-footer a {
+  color: var(--color-text-muted);
+}
+
+.consult-button {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1001;
+}
+
+.consult-button:hover,
+.consult-button:focus-visible {
+  background: var(--color-primary-dark);
+}
+
+.legal-contact-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.legal-contact-list dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.legal-contact-list dd {
+  margin: 0;
 }
 
 .notice {
@@ -425,5 +497,25 @@ td {
   .summary-bar {
     flex-direction: column;
     gap: var(--space-2);
+  }
+
+  .app-nav-backlink {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .consult-button {
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.85rem;
+  }
+
+  .legal-contact-list {
+    grid-template-columns: 1fr;
   }
 }

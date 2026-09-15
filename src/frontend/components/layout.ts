@@ -14,6 +14,10 @@ const NAV_ITEMS: { path: string; icon: string; label: string }[] = [
 export function buildAppShell(root: HTMLElement): AppShell {
   root.innerHTML = "";
 
+  const demoBanner = document.createElement("div");
+  demoBanner.className = "demo-banner";
+  demoBanner.textContent = STRINGS.demo.banner;
+
   const header = document.createElement("header");
   header.className = "app-header";
 
@@ -40,6 +44,14 @@ export function buildAppShell(root: HTMLElement): AppShell {
     nav.appendChild(link);
   }
 
+  const backToListLink = document.createElement("a");
+  backToListLink.className = "app-nav-backlink";
+  backToListLink.href = "https://rictaworks.jp/#demos";
+  backToListLink.target = "_blank";
+  backToListLink.rel = "noopener";
+  backToListLink.textContent = STRINGS.demo.backToList;
+  nav.appendChild(backToListLink);
+
   header.appendChild(titleRow);
   header.appendChild(nav);
 
@@ -55,9 +67,34 @@ export function buildAppShell(root: HTMLElement): AppShell {
   main.className = "app-outlet";
   main.id = "app-outlet";
 
+  const footer = document.createElement("footer");
+  footer.className = "app-footer";
+  const legalLink = document.createElement("a");
+  legalLink.href = "#/legal";
+  legalLink.textContent = STRINGS.demo.legalLink;
+  const copyright = document.createElement("span");
+  copyright.textContent = STRINGS.demo.copyright;
+  footer.appendChild(legalLink);
+  footer.appendChild(copyright);
+
   root.appendChild(header);
   root.appendChild(lifetimeBanner);
   root.appendChild(main);
+  root.appendChild(footer);
+
+  document.body.insertBefore(demoBanner, root);
+
+  const consultButton = document.createElement("a");
+  consultButton.className = "consult-button";
+  consultButton.href = "https://rictaworks.jp/";
+  consultButton.target = "_blank";
+  consultButton.rel = "noopener";
+  const consultIcon = document.createElement("i");
+  consultIcon.className = "fa-solid fa-comment-dots";
+  consultIcon.setAttribute("aria-hidden", "true");
+  consultButton.appendChild(consultIcon);
+  consultButton.appendChild(document.createTextNode(STRINGS.demo.consult));
+  document.body.appendChild(consultButton);
 
   return { outlet: main };
 }
