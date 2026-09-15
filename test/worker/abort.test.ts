@@ -47,4 +47,21 @@ describe("中止", () => {
     const advance = await client.post(`/api/phases/${p18.id}/advance`);
     expect(advance.status).toBe(409);
   });
+
+  it("中止で凍結された工程の成果物・判断基準は更新できない（8.3：P18以外は操作不能）", async () => {
+    const beforeFlow = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    const p01 = beforeFlow.phases.find((p: { code: string }) => p.code === "P01");
+    const p01Detail = (await client.get(`/api/phases/${p01.id}`)).body;
+    const deliverableId = p01Detail.deliverables[0].id as string;
+    const criterion = p01Detail.criteria.find((c: { autoAttached: boolean }) => !c.autoAttached);
+    const criterionId = criterion.id as string;
+
+    await client.post(`/api/projects/${projectId}/abort`, { reason: "発注者都合により中止" });
+
+    const deliverableUpdate = await client.patch(`/api/deliverables/${deliverableId}`, { state: "作成中" });
+    expect(deliverableUpdate.status).toBe(409);
+
+    const criterionUpdate = await client.patch(`/api/criteria/${criterionId}`, { satisfied: true, note: null });
+    expect(criterionUpdate.status).toBe(409);
+  });
 });

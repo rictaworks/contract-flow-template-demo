@@ -76,4 +76,5 @@ export const isScale = makeGuard(SCALES);
 export const isCertainty = makeGuard(CERTAINTIES);
 export const isDeliverableState = makeGuard(DELIVERABLE_STATES);
 export const isMaintenanceStage = makeGuard(MAINTENANCE_STAGES);
+export const isMaintenanceRecordState = makeGuard(MAINTENANCE_RECORD_STATES);
 export const isRole = makeGuard(ROLES);

@@ -64,6 +64,39 @@ describe("変更要求ワークフロー", () => {
     expect(impactedDeliverable.state).toBe("要更新");
   });
 
+  it("他案件（同一セッション内）の成果物IDを影響成果物に指定すると拒否される", async () => {
+    let flow = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    for (let i = 0; i < 3; i++) {
+      const currentId = flow.project.currentPhaseId as string;
+      await fullySatisfyPhase(client, currentId);
+      await evaluateAndAdvance(client, currentId);
+      flow = (await client.get(`/api/projects/${projectId}/flow`)).body;
+    }
+    const raise = await client.post(`/api/projects/${projectId}/change-requests`, { title: "追加機能の要望" });
+    const crId = raise.body.id as string;
+
+    // 同一セッション内に別案件を作成し、その成果物IDを混入させる
+    const otherProject = await client.post("/api/profile", {
+      contractType: "準委任",
+      workType: "調査",
+      scale: "小",
+      requirementCertainty: "確定",
+      label: "別案件",
+    });
+    const otherFlow = (await client.get(`/api/projects/${otherProject.body.projectId}/flow`)).body;
+    const otherPhaseId = otherFlow.phases[0].id as string;
+    const otherDetail = (await client.get(`/api/phases/${otherPhaseId}`)).body;
+    const otherDeliverableId = otherDetail.deliverables[0].id as string;
+
+    const impact = await client.patch(`/api/change-requests/${crId}/impact`, {
+      affectsEffort: false,
+      affectsSchedule: false,
+      affectsCost: false,
+      impactDeliverableIds: [otherDeliverableId],
+    });
+    expect(impact.status).toBe(400);
+  });
+
   it("却下すると理由が記録され状態が却下になる", async () => {
     let flow = (await client.get(`/api/projects/${projectId}/flow`)).body;
     for (let i = 0; i < 3; i++) {

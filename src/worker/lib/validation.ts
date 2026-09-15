@@ -2,12 +2,22 @@ import {
   isCertainty,
   isContractType,
   isDeliverableState,
+  isMaintenanceRecordState,
   isMaintenanceStage,
   isRole,
   isScale,
   isWorkType,
 } from "../master/enums";
-import type { Certainty, ContractType, DeliverableState, MaintenanceStage, Role, Scale, WorkType } from "../master/enums";
+import type {
+  Certainty,
+  ContractType,
+  DeliverableState,
+  MaintenanceRecordState,
+  MaintenanceStage,
+  Role,
+  Scale,
+  WorkType,
+} from "../master/enums";
 import type { ProjectProfile } from "../domain/types";
 
 export class ValidationError extends Error {}
@@ -39,6 +49,11 @@ export function assertRole(value: unknown): Role {
 
 export function assertMaintenanceStage(value: unknown): MaintenanceStage {
   if (!isMaintenanceStage(value)) throw new ValidationError("invalid maintenance stage");
+  return value;
+}
+
+export function assertMaintenanceRecordState(value: unknown): MaintenanceRecordState {
+  if (!isMaintenanceRecordState(value)) throw new ValidationError("invalid maintenance record state");
   return value;
 }
 

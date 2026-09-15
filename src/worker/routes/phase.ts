@@ -9,9 +9,17 @@ import { MaintenanceRepository } from "../db/repositories/maintenanceRepository"
 import { GateEvaluator } from "../domain/gateEvaluator";
 import { TransitionService } from "../domain/transitionService";
 import { MaintenanceCycleService } from "../domain/maintenanceCycleService";
-import { assertDeliverableState, assertMaintenanceStage, assertNonEmptyString, assertRole, ValidationError } from "../lib/validation";
+import {
+  assertDeliverableState,
+  assertMaintenanceRecordState,
+  assertMaintenanceStage,
+  assertNonEmptyString,
+  assertRole,
+  ValidationError,
+} from "../lib/validation";
 import { toJstDateString } from "../lib/time";
 import { STRINGS } from "../strings/ja";
+import { AUTO_COMPUTED_CRITERIA_TEXTS } from "../master/criteria";
 
 export const phaseRoutes = new Hono<AppEnv>();
 
@@ -78,6 +86,8 @@ phaseRoutes.patch("/deliverables/:id", async (c) => {
   const id = c.req.param("id");
   const deliverable = await PhaseRepository.findDeliverable(c.env.DB, sessionId, id);
   if (!deliverable) return c.json({ error: STRINGS.errors.notFound }, 404);
+  const owningPhase = await PhaseRepository.findById(c.env.DB, sessionId, deliverable.phase_id);
+  if (!owningPhase || owningPhase.state === "凍結") return c.json({ error: STRINGS.errors.phaseFrozen }, 409);
   const body = await c.req.json().catch(() => ({}));
   let state;
   try {
@@ -90,13 +100,16 @@ phaseRoutes.patch("/deliverables/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+const AUTO_COMPUTED_CRITERIA: Set<string> = new Set(Object.values(AUTO_COMPUTED_CRITERIA_TEXTS));
+
 phaseRoutes.patch("/criteria/:id", async (c) => {
   const sessionId = c.get("sessionId");
   const id = c.req.param("id");
   const criterion = await PhaseRepository.findCriterion(c.env.DB, sessionId, id);
   if (!criterion) return c.json({ error: STRINGS.errors.notFound }, 404);
-  const AUTO_COMPUTED = new Set(["承認記録が存在する", "持越し課題がゼロである", "未合意の変更要求がゼロである"]);
-  if (criterion.auto_attached === 1 && AUTO_COMPUTED.has(criterion.text)) {
+  const owningPhase = await PhaseRepository.findById(c.env.DB, sessionId, criterion.phase_id);
+  if (!owningPhase || owningPhase.state === "凍結") return c.json({ error: STRINGS.errors.phaseFrozen }, 409);
+  if (criterion.auto_attached === 1 && AUTO_COMPUTED_CRITERIA.has(criterion.text)) {
     return c.json({ error: STRINGS.errors.badRequest }, 400);
   }
   const body = await c.req.json().catch(() => ({}));
@@ -313,8 +326,13 @@ phaseRoutes.patch("/maintenance-records/:id", async (c) => {
   const sessionId = c.get("sessionId");
   const id = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const state = (body as Record<string, unknown>).state;
-  if (typeof state !== "string") return c.json({ error: STRINGS.errors.badRequest }, 400);
+  let state;
+  try {
+    state = assertMaintenanceRecordState((body as Record<string, unknown>).state);
+  } catch (e) {
+    if (e instanceof ValidationError) return c.json({ error: STRINGS.errors.badRequest }, 400);
+    throw e;
+  }
   await MaintenanceRepository.updateRecordState(c.env.DB, sessionId, id, state);
   return c.json({ ok: true });
 });

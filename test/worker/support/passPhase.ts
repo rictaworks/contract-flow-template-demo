@@ -1,6 +1,7 @@
 import type { makeClient } from "./client";
+import { AUTO_COMPUTED_CRITERIA_TEXTS } from "../../../src/worker/master/criteria";
 
-const AUTO_COMPUTED = new Set(["承認記録が存在する", "持越し課題がゼロである", "未合意の変更要求がゼロである"]);
+const AUTO_COMPUTED: Set<string> = new Set(Object.values(AUTO_COMPUTED_CRITERIA_TEXTS));
 
 interface PhaseDetail {
   phase: { id: string; gateKind: string };

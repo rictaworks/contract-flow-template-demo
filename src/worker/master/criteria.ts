@@ -5,6 +5,15 @@ export interface CriterionTemplate {
   level: CriterionLevel;
 }
 
+// R16・R17で自動付与され、達成状態を実データ（承認記録・持越し課題・変更要求）から自動算出する
+// 判断基準の文言。人手による上書きを許さないため、派生規則・ゲート判定・PATCHガードの
+// 3箇所で同一の値を共有し、文言のズレによる不変条件の破れを防ぐ（requirements.md 7.1）。
+export const AUTO_COMPUTED_CRITERIA_TEXTS = {
+  approvalExists: "承認記録が存在する",
+  noOpenCarryover: "持越し課題がゼロである",
+  noUnagreedChangeRequest: "未合意の変更要求がゼロである",
+} as const;
+
 // 判断基準マスタ（requirements.md 6.6）。成果物状態に関する共通必須基準はGateEvaluatorで動的に導出する。
 export const CRITERIA_MASTER: Record<string, CriterionTemplate[]> = {
   P01: [

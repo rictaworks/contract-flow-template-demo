@@ -66,4 +66,17 @@ describe("保守運用サイクル（P15）", () => {
     const monthlyReportAfter = afterDetail.deliverables.find((d: { name: string }) => d.name === "月次報告書");
     expect(monthlyReportAfter.state).toBe("未作成");
   });
+
+  it("保守対応記録の状態はマスタ区分値（受付/切り分け/対応/完了/引継ぎ）以外を拒否する", async () => {
+    const start = await client.post(`/api/phases/${p15Id}/maintenance/start`);
+    const cycleId = start.body.cycleId as string;
+    const record = await client.post(`/api/maintenance-cycles/${cycleId}/records`, { summary: "問い合わせ対応" });
+    const recordId = record.body.id as string;
+
+    const invalid = await client.patch(`/api/maintenance-records/${recordId}`, { state: "未定義な状態" });
+    expect(invalid.status).toBe(400);
+
+    const valid = await client.patch(`/api/maintenance-records/${recordId}`, { state: "完了" });
+    expect(valid.status).toBe(200);
+  });
 });

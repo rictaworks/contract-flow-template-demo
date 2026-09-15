@@ -79,6 +79,17 @@ changeRequestRoutes.patch("/change-requests/:id/impact", async (c) => {
     ? ((body as Record<string, unknown>).impactDeliverableIds as unknown[]).filter((x): x is string => typeof x === "string")
     : [];
 
+  if (impactDeliverableIds.length > 0) {
+    const projectPhases = await PhaseRepository.listByProject(c.env.DB, sessionId, cr.project_id);
+    const phaseIdsOfProject = new Set(projectPhases.map((p) => p.id));
+    for (const deliverableId of impactDeliverableIds) {
+      const deliverable = await PhaseRepository.findDeliverable(c.env.DB, sessionId, deliverableId);
+      if (!deliverable || !phaseIdsOfProject.has(deliverable.phase_id)) {
+        return c.json({ error: STRINGS.errors.badRequest }, 400);
+      }
+    }
+  }
+
   await ChangeRequestRepository.recordImpactAssessment(c.env.DB, sessionId, id, affectsEffort, affectsSchedule, affectsCost, impactDeliverableIds);
   return c.json({ ok: true });
 });

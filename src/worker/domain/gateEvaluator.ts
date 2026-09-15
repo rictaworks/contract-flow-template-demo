@@ -1,8 +1,9 @@
 import type { ApprovalRow, CriterionRow, DeliverableRow, PhaseRow } from "../db/types";
+import { AUTO_COMPUTED_CRITERIA_TEXTS } from "../master/criteria";
 import type { GateVerdict } from "./types";
 
-// R17 により自動付与され、達成状態を実データから自動算出する判断基準（人手による上書きを許さない）。
-const AUTO_COMPUTED_CRITERIA = new Set(["承認記録が存在する", "持越し課題がゼロである", "未合意の変更要求がゼロである"]);
+// R16・R17 により自動付与され、達成状態を実データから自動算出する判断基準（人手による上書きを許さない）。
+const AUTO_COMPUTED_CRITERIA: Set<string> = new Set(Object.values(AUTO_COMPUTED_CRITERIA_TEXTS));
 
 function requiredDeliverableState(gateKind: string): string[] {
   if (gateKind === "内部レビュー") return ["レビュー済", "承認済"];
@@ -41,9 +42,9 @@ export const GateEvaluator = {
       let satisfied: boolean;
       if (isAutoComputed) {
         satisfied =
-          c.text === "承認記録が存在する"
+          c.text === AUTO_COMPUTED_CRITERIA_TEXTS.approvalExists
             ? approvals.length > 0
-            : c.text === "持越し課題がゼロである"
+            : c.text === AUTO_COMPUTED_CRITERIA_TEXTS.noOpenCarryover
               ? openCarryoverIssueCount === 0
               : unagreedChangeRequestCount === 0;
       } else {
@@ -51,7 +52,7 @@ export const GateEvaluator = {
       }
       if (satisfied) continue;
       if (c.level === "必須") {
-        if (!isAutoComputed || c.text !== "承認記録が存在する") unmetRequired.push(c.text);
+        if (!isAutoComputed || c.text !== AUTO_COMPUTED_CRITERIA_TEXTS.approvalExists) unmetRequired.push(c.text);
       } else {
         unmetRecommended.push(c.text);
       }

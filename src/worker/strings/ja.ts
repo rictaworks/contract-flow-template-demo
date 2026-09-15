@@ -24,5 +24,6 @@ export const STRINGS = {
     projectAborted: "この案件は中止されています。クローズ工程のみ操作できます。",
     changeRequestPhaseTooEarly: "契約締結（P03）の通過後にのみ変更要求を起票できます。",
     changeRequestInvalidTransition: "この変更要求は現在その操作を行える状態ではありません。",
+    phaseFrozen: "この工程は案件の中止により操作できません。",
   },
 } as const;

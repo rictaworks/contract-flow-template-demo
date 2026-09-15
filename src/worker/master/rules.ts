@@ -1,5 +1,5 @@
 import { DELIVERABLE_MASTER } from "./deliverables";
-import { CRITERIA_MASTER } from "./criteria";
+import { AUTO_COMPUTED_CRITERIA_TEXTS, CRITERIA_MASTER } from "./criteria";
 import { PHASE_MASTER } from "./phases";
 import type { GateKind, Role } from "./enums";
 import type { CriterionDraft, DeliverableDraft, PhaseDraft, ProjectProfile } from "../domain/types";
@@ -333,7 +333,7 @@ export const DERIVATION_RULES: DerivationRule[] = [
     apply: (b, _p) => {
       for (const phase of b.phases) {
         if (phase.gateKind === "顧客承認" || phase.gateKind === "検収") {
-          b.addCriterion(phase, "承認記録が存在する", "必須", "R16");
+          b.addCriterion(phase, AUTO_COMPUTED_CRITERIA_TEXTS.approvalExists, "必須", "R16");
         }
       }
     },
@@ -344,8 +344,8 @@ export const DERIVATION_RULES: DerivationRule[] = [
     apply: (b, _p) => {
       for (const phase of b.phases) {
         if (phase.code === "P13" || phase.code === "P14") {
-          b.addCriterion(phase, "持越し課題がゼロである", "必須", "R17");
-          b.addCriterion(phase, "未合意の変更要求がゼロである", "必須", "R17");
+          b.addCriterion(phase, AUTO_COMPUTED_CRITERIA_TEXTS.noOpenCarryover, "必須", "R17");
+          b.addCriterion(phase, AUTO_COMPUTED_CRITERIA_TEXTS.noUnagreedChangeRequest, "必須", "R17");
         }
       }
     },
