@@ -3,7 +3,7 @@ import { STRINGS } from "../strings/ja";
 import { api, ApiError } from "../net/client";
 import { getCurrentProjectId } from "../state";
 import { openConfirmDialog, openFormDialog, showNotice } from "../components/dialog";
-import { DELIVERABLE_STATE_OPTIONS, ROLE_OPTIONS, MAINTENANCE_STAGE_ORDER } from "../masterOptions";
+import { DELIVERABLE_STATE_OPTIONS, ROLE_OPTIONS, MAINTENANCE_STAGE_ORDER, AUTO_COMPUTED_CRITERIA_TEXTS } from "../masterOptions";
 import type { Router } from "../router";
 
 interface Deliverable {
@@ -167,7 +167,10 @@ function buildCriteriaSection(phaseId: string, criteria: Criterion[], reload: ()
   for (const c of criteria) {
     const checkbox = h("input", { type: "checkbox", id: `criterion-${c.id}` }) as HTMLInputElement;
     checkbox.checked = c.satisfied;
-    checkbox.disabled = c.autoAttached;
+    // 自動付与（autoAttached）と自動算出（AUTO_COMPUTED_CRITERIA_TEXTS）は別概念。
+    // disabled にしてよいのは、達成状態が実データから動的に算出される後者のみ
+    // （前者はあくまで「派生規則が追加した」という由来を示すだけで、達成の記録は手動）。
+    checkbox.disabled = (AUTO_COMPUTED_CRITERIA_TEXTS as readonly string[]).includes(c.text);
     checkbox.addEventListener("change", async () => {
       try {
         await api.patch(`/api/criteria/${c.id}`, { satisfied: checkbox.checked });
