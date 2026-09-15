@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "contract-flow-template-demo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n worker,frontend \"npm:dev:worker\" \"npm:dev:frontend\"",
