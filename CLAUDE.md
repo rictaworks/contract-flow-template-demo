@@ -108,7 +108,22 @@
 
 ## コマンド
 
-未実装（Issue未発行）のため確定していない。実装Issueで `src/` 配下の構成（フロントエンド／アプリケーション）と npm スクリプトを決定し、本節を追記すること。requirements.md 17章により、フローの展開・判定は同期処理で完結させ、バックグラウンド処理を持たないこと。
+`src/` 配下は `src/worker/**`（Cloudflare Workers・Hono・D1）と `src/frontend/**`（Cloudflare Pages・Vite・Vanilla TypeScript）の2系統。フローの展開・判定は同期処理で完結し、バックグラウンド処理は持たない（requirements.md 17章）。
+
+| コマンド | 用途 |
+|---|---|
+| `npm install` | 依存関係のインストール |
+| `npm run dev` | Worker（`wrangler dev --local`, :8787）とフロントエンド（`vite`, :5173）を同時起動。`/api` は `vite.config.ts` のproxyで:8787へ転送される |
+| `npm run dev:worker` | Workerのみをローカル起動（:8787） |
+| `npm run dev:frontend` | フロントエンドのみをローカル起動（:5173） |
+| `npm run build` | フロントエンドの本番ビルド（`dist/frontend`） |
+| `npm run typecheck` | Worker・フロントエンド双方の `tsc --noEmit` |
+| `npm test` | vitestによる単体・結合テスト（`test/unit/`・`test/worker/`） |
+| `npm run test:watch` | vitestをウォッチモードで実行 |
+| `npm run test:e2e` | PlaywrightによるE2Eテスト（`test/e2e/`。`npm run dev` 相当のサーバーを自動起動） |
+| `npm run db:migrate:local` | ローカルD1へマイグレーション（`src/worker/db/migrations/`）を適用 |
+
+Cloudflareアカウントへの実デプロイ（`wrangler deploy` 等）は本節の対象外（未実施）。`wrangler.toml` の `database_id` はローカル用プレースホルダのため、本番デプロイ時は `wrangler d1 create` 後に差し替えが必要。
 
 ## 参照ドキュメント
 
