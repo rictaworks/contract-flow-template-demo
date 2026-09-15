@@ -61,6 +61,26 @@ describe("ゲート判定：不通過・条件付き通過", () => {
     expect(advance.status).toBe(200);
   });
 
+  it("同一工程を状態を変えずに複数回評価しても、同一の持越し課題は重複登録されない（issue #9 回帰）", async () => {
+    const detail = (await client.get(`/api/phases/${phaseId}`)).body;
+    for (const d of detail.deliverables.filter((x: { requirement: string }) => x.requirement === "必須")) {
+      await client.patch(`/api/deliverables/${d.id}`, { state: "レビュー済" });
+    }
+    for (const c of detail.criteria.filter((x: { level: string }) => x.level === "必須")) {
+      await client.patch(`/api/criteria/${c.id}`, { satisfied: true, note: null });
+    }
+
+    await client.post(`/api/phases/${phaseId}/evaluate`);
+    const afterFirst = (await client.get(`/api/projects/${projectId}/carryover-issues`)).body.issues;
+    expect(afterFirst.length).toBeGreaterThan(0);
+
+    // 状態を変えずに同じ工程を再評価する（条件付き通過→ゲート評価待ちのままなので再評価できる）
+    await client.post(`/api/phases/${phaseId}/evaluate`);
+    await client.post(`/api/phases/${phaseId}/evaluate`);
+    const afterRepeat = (await client.get(`/api/projects/${projectId}/carryover-issues`)).body.issues;
+    expect(afterRepeat.length).toBe(afterFirst.length);
+  });
+
   it("顧客承認ゲートは承認記録が無いと他の基準を満たしても不通過", async () => {
     // P01(内部レビュー)を通過させてP02(顧客承認)へ
     const detail = (await client.get(`/api/phases/${phaseId}`)).body;
